@@ -38,6 +38,8 @@ include ::tfenv
 
   ```console
   $ git clone https://github.com/tfutils/tfenv.git ~/.tfenv
+  
+  $ cd ~/.tfenv && git checkout $(git tag |grep -v alpha|tail -1)
   ```
 
 2. Add `~/.tfenv/bin` to your `$PATH` any way you like
