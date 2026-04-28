@@ -59,29 +59,12 @@ cleanup || log 'error' 'Cleanup failed?!';
   chmod 555 "${ro_dir}";
   declare fallback_home;
   fallback_home="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_home')";
-  # Pipe "y" as stdin via script(1) which allocates a pseudo-terminal.
-  # The prompt checks [[ -t 0 ]], so piping directly would be non-interactive.
-  # Piping into script(1) forwards input through the PTY, so the child sees
-  # a real terminal on stdin.
+  # Use TFENV_FORCE_INTERACTIVE to bypass the [[ -t 0 ]] check so we can
+  # pipe input directly without needing script(1) and PTY allocation, which
+  # behaves differently on GNU vs BSD and is unreliable in CI.
   declare output;
-  if command -v script >/dev/null 2>&1; then
-    # GNU script (Linux) vs BSD script (macOS) have different syntax
-    if script --help 2>&1 | grep -q -- '--return'; then
-      # GNU script: -c takes a command string; --return propagates exit code
-      output="$(printf 'y\n' | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
-      declare rc="${?}";
-    else
-      # BSD script (macOS): command must be separate positional arguments
-      output="$(printf 'y\n' | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
-      declare rc="${?}";
-    fi;
-  else
-    # Fallback: skip this test if script(1) is not available
-    log 'warn' 'script(1) not available, skipping interactive fallback test';
-    chmod 755 "${ro_dir}";
-    rm -rf "${ro_dir}" "${fallback_home}";
-    exit 0;
-  fi;
+  output="$(printf 'y\n' | TFENV_FORCE_INTERACTIVE=1 TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
+  declare rc="${?}";
   chmod 755 "${ro_dir}";
   rm -rf "${ro_dir}";
   if [ "${rc}" -ne 0 ]; then
@@ -108,21 +91,8 @@ cleanup || log 'error' 'Cleanup failed?!';
   ro_dir="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_ro3')";
   chmod 555 "${ro_dir}";
   declare output;
-  if command -v script >/dev/null 2>&1; then
-    if script --help 2>&1 | grep -q -- '--return'; then
-      output="$(printf 'n\n' | TFENV_CONFIG_DIR="${ro_dir}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
-      declare rc="${?}";
-    else
-      # BSD script (macOS): command must be separate positional arguments
-      output="$(printf 'n\n' | TFENV_CONFIG_DIR="${ro_dir}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
-      declare rc="${?}";
-    fi;
-  else
-    log 'warn' 'script(1) not available, skipping interactive decline test';
-    chmod 755 "${ro_dir}";
-    rm -rf "${ro_dir}";
-    exit 0;
-  fi;
+  output="$(printf 'n\n' | TFENV_FORCE_INTERACTIVE=1 TFENV_CONFIG_DIR="${ro_dir}" "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
+  declare rc="${?}";
   chmod 755 "${ro_dir}";
   rm -rf "${ro_dir}";
   [ "${rc}" -ne 0 ] || exit 1;

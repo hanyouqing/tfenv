@@ -94,7 +94,7 @@ mkdir -p "${TFENV_CONFIG_DIR}" || log 'error' "Failed to create ${TFENV_CONFIG_D
 # dir (e.g. Homebrew Cellar on CI runners) causes mkdir-based locking to fail
 # with EACCES, which was previously misreported as lock contention (#524).
 if [ ! -w "${TFENV_CONFIG_DIR}" ]; then
-  if [[ -t 0 ]]; then
+  if [[ "${TFENV_FORCE_INTERACTIVE:-}" == "1" || -t 0 ]]; then
     echo "tfenv: TFENV_CONFIG_DIR (${TFENV_CONFIG_DIR}) is not writable." >&2;
     echo "tfenv: Use ~/.tfenv instead? [y/N]" >&2;
     read -r answer;
