@@ -168,7 +168,86 @@ cleanup || log 'error' 'Cleanup failed?!';
   || error_and_proceed 'install lock directory was not cleaned up after successful install';
 
 ##############################################################################
-# Test 8: Lock cleanup on interrupted exit
+# Test 8: Config dir path exists but is a FILE, not a directory
+##############################################################################
+log 'info' '## install_lock: config dir is a file, not a directory';
+cleanup || log 'error' 'Cleanup failed?!';
+(
+  declare tmpdir;
+  tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_notdir')";
+  declare fakedir="${tmpdir}/fakedir";
+  touch "${fakedir}";
+  declare output;
+  output="$(TFENV_CONFIG_DIR="${fakedir}" tfenv install "${test_version}" < /dev/null 2>&1)";
+  declare rc="${?}";
+  rm -rf "${tmpdir}";
+  [ "${rc}" -ne 0 ] || exit 1;
+  echo "${output}" | grep -q 'not a directory' || exit 1;
+) && log 'info' '## install_lock: config dir is a file passed' \
+  || error_and_proceed 'config dir that is a file did not fail with expected error';
+
+##############################################################################
+# Test 9: Ancestor in path is a file, not a directory
+##############################################################################
+log 'info' '## install_lock: ancestor in path is a file, not a directory';
+cleanup || log 'error' 'Cleanup failed?!';
+(
+  declare tmpdir;
+  tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_ancestor')";
+  touch "${tmpdir}/blocker";
+  declare output;
+  output="$(TFENV_CONFIG_DIR="${tmpdir}/blocker/deep/config" tfenv install "${test_version}" < /dev/null 2>&1)";
+  declare rc="${?}";
+  rm -rf "${tmpdir}";
+  [ "${rc}" -ne 0 ] || exit 1;
+  echo "${output}" | grep -q 'ancestor' || exit 1;
+  echo "${output}" | grep -q 'not a directory' || exit 1;
+) && log 'info' '## install_lock: ancestor is a file passed' \
+  || error_and_proceed 'ancestor that is a file did not fail with expected error';
+
+##############################################################################
+# Test 10: Interactive fallback to ~/.tfenv fails when HOME is non-writable
+##############################################################################
+log 'info' '## install_lock: interactive fallback fails when HOME is non-writable';
+cleanup || log 'error' 'Cleanup failed?!';
+(
+  declare ro_config;
+  ro_config="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_rocfg')";
+  chmod 555 "${ro_config}";
+  declare ro_home;
+  ro_home="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_rohome')";
+  chmod 555 "${ro_home}";
+  declare output;
+  output="$(printf 'y\n' | TFENV_FORCE_INTERACTIVE=1 TFENV_CONFIG_DIR="${ro_config}" HOME="${ro_home}" "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
+  declare rc="${?}";
+  chmod 755 "${ro_config}";
+  chmod 755 "${ro_home}";
+  rm -rf "${ro_config}" "${ro_home}";
+  [ "${rc}" -ne 0 ] || exit 1;
+  echo "${output}" | grep -q 'Failed to create' || exit 1;
+) && log 'info' '## install_lock: interactive fallback fails with non-writable HOME passed' \
+  || error_and_proceed 'interactive fallback with non-writable HOME did not fail with expected error';
+
+##############################################################################
+# Test 11: Non-existent config dir, non-writable parent, interactive decline
+##############################################################################
+log 'info' '## install_lock: non-existent config dir, non-writable parent, interactive decline';
+cleanup || log 'error' 'Cleanup failed?!';
+(
+  declare readonly_parent;
+  readonly_parent="$(mktemp -d 2>/dev/null || mktemp -d -t 'tfenv_lock_roprt3')";
+  chmod 555 "${readonly_parent}";
+  declare output;
+  output="$(printf 'n\n' | TFENV_FORCE_INTERACTIVE=1 TFENV_CONFIG_DIR="${readonly_parent}/tfenv-config" "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
+  declare rc="${?}";
+  chmod 755 "${readonly_parent}";
+  rm -rf "${readonly_parent}";
+  [ "${rc}" -ne 0 ] || exit 1;
+) && log 'info' '## install_lock: non-writable parent, interactive decline passed' \
+  || error_and_proceed 'non-existent config dir, non-writable parent, interactive decline did not fail';
+
+##############################################################################
+# Test 12: Lock cleanup on interrupted exit
 # Skipped — reliably testing signal-handler cleanup (SIGINT/SIGTERM during
 # install) is inherently racy and would produce flaky CI results. The
 # cleanup_lock trap is validated by manual testing and code review.
