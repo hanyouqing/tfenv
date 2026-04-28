@@ -86,14 +86,14 @@ if [ "${TFENV_SKIP_REMOTE_CHECK:-0}" -eq 0 ]; then
   [ -n "${remote_version}" ] && version="${remote_version}" || log 'error' "No versions matching '${requested:-$version}' found in remote";
 fi;
 
-# Ensure the config dir exists so the lock mkdir can succeed on a first install.
-# Without this, mkdir fails with ENOENT and the loop below misreads it as contention.
-mkdir -p "${TFENV_CONFIG_DIR}" || log 'error' "Failed to create ${TFENV_CONFIG_DIR}";
+# Try to create the config dir — if it fails (EACCES, ENOENT on parent, etc.)
+# the writability check below will offer the interactive fallback or give a clear error.
+mkdir -p "${TFENV_CONFIG_DIR}" 2>/dev/null;
 
 # Check that TFENV_CONFIG_DIR is writable before proceeding. A read-only config
 # dir (e.g. Homebrew Cellar on CI runners) causes mkdir-based locking to fail
 # with EACCES, which was previously misreported as lock contention (#524).
-if [ ! -w "${TFENV_CONFIG_DIR}" ]; then
+if [ ! -d "${TFENV_CONFIG_DIR}" ] || [ ! -w "${TFENV_CONFIG_DIR}" ]; then
   if [[ "${TFENV_FORCE_INTERACTIVE:-}" == "1" || -t 0 ]]; then
     echo "tfenv: TFENV_CONFIG_DIR (${TFENV_CONFIG_DIR}) is not writable." >&2;
     echo "tfenv: Use ~/.tfenv instead? [y/N]" >&2;
