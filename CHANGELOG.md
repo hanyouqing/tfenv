@@ -1,3 +1,7 @@
+## 3.2.2 (April 28, 2026)
+
+ * FIX: Fail fast with precise diagnostics when TFENV_CONFIG_DIR is not writable, instead of misreporting lock contention for 60s; offer interactive fallback to ~/.tfenv (#524)
+
 ## 3.2.1 (April 28, 2026)
 
  * FIX: Install lock misreads missing config parent dir as contention, blocking first-run installs via Homebrew on macOS, fixing #487 and #525 (Gavin Elder <gavin.elder@seqera.io>)
