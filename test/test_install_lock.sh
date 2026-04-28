@@ -45,6 +45,8 @@ cleanup || log 'error' 'Cleanup failed?!';
   rm -rf "${ro_dir}";
   [ "${rc}" -ne 0 ] || exit 1;
   echo "${output}" | grep -q 'not writable' || exit 1;
+  # Verify diagnostics include ownership info
+  echo "${output}" | grep -q 'owner:' || exit 1;
 ) && log 'info' '## install_lock: read-only non-interactive passed' \
   || error_and_proceed 'read-only TFENV_CONFIG_DIR non-interactive did not fail with expected error';
 
@@ -115,6 +117,9 @@ cleanup || log 'error' 'Cleanup failed?!';
   rm -rf "${readonly_parent}";
   [ "${rc}" -ne 0 ] || exit 1;
   echo "${output}" | grep -q 'not writable' || exit 1;
+  # Verify diagnostics include ownership info and identify the parent
+  echo "${output}" | grep -q 'owner:' || exit 1;
+  echo "${output}" | grep -q 'parent' || exit 1;
 ) && log 'info' '## install_lock: non-existent config dir, non-writable parent, non-interactive passed' \
   || error_and_proceed 'non-existent config dir inside non-writable parent (non-interactive) did not fail with expected error';
 
