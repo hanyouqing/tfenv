@@ -67,12 +67,12 @@ cleanup || log 'error' 'Cleanup failed?!';
   if command -v script >/dev/null 2>&1; then
     # GNU script (Linux) vs BSD script (macOS) have different syntax
     if script --help 2>&1 | grep -q -- '--return'; then
-      # GNU script: pipe into script so the PTY forwards "y" to tfenv
-      output="$(echo y | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
+      # GNU script: -c takes a command string; --return propagates exit code
+      output="$(printf 'y\n' | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
       declare rc="${?}";
     else
-      # BSD script (macOS)
-      output="$(echo y | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv install ${test_version}" 2>&1)";
+      # BSD script (macOS): command must be separate positional arguments
+      output="$(printf 'y\n' | TFENV_CONFIG_DIR="${ro_dir}" HOME="${fallback_home}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
       declare rc="${?}";
     fi;
   else
@@ -110,10 +110,11 @@ cleanup || log 'error' 'Cleanup failed?!';
   declare output;
   if command -v script >/dev/null 2>&1; then
     if script --help 2>&1 | grep -q -- '--return'; then
-      output="$(echo n | TFENV_CONFIG_DIR="${ro_dir}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
+      output="$(printf 'n\n' | TFENV_CONFIG_DIR="${ro_dir}" script -qec "${TFENV_ROOT}/bin/tfenv install ${test_version}" --return /dev/null 2>&1)";
       declare rc="${?}";
     else
-      output="$(echo n | TFENV_CONFIG_DIR="${ro_dir}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv install ${test_version}" 2>&1)";
+      # BSD script (macOS): command must be separate positional arguments
+      output="$(printf 'n\n' | TFENV_CONFIG_DIR="${ro_dir}" script -q /dev/null "${TFENV_ROOT}/bin/tfenv" install "${test_version}" 2>&1)";
       declare rc="${?}";
     fi;
   else
