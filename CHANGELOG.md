@@ -1,3 +1,7 @@
+## 3.2.1 (April 28, 2026)
+
+ * FIX: Install lock misreads missing config parent dir as contention, blocking first-run installs via Homebrew on macOS, fixing #487 and #525 (Gavin Elder <gavin.elder@seqera.io>)
+
 ## 3.2.0 (April 24, 2026)
 
  * NEW FEATURE: Support comments in `.terraform-version` files — lines starting with `#` and inline `#` comments are stripped, fixing #391 and #283 (Mike Peachey <mike.peachey@bjss.com>)
