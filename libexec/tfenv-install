@@ -86,6 +86,31 @@ if [ "${TFENV_SKIP_REMOTE_CHECK:-0}" -eq 0 ]; then
   [ -n "${remote_version}" ] && version="${remote_version}" || log 'error' "No versions matching '${requested:-$version}' found in remote";
 fi;
 
+# Ensure the config dir exists so the lock mkdir can succeed on a first install.
+# Without this, mkdir fails with ENOENT and the loop below misreads it as contention.
+mkdir -p "${TFENV_CONFIG_DIR}" || log 'error' "Failed to create ${TFENV_CONFIG_DIR}";
+
+# Check that TFENV_CONFIG_DIR is writable before proceeding. A read-only config
+# dir (e.g. Homebrew Cellar on CI runners) causes mkdir-based locking to fail
+# with EACCES, which was previously misreported as lock contention (#524).
+if [ ! -w "${TFENV_CONFIG_DIR}" ]; then
+  if [[ -t 0 ]]; then
+    echo "tfenv: TFENV_CONFIG_DIR (${TFENV_CONFIG_DIR}) is not writable." >&2;
+    echo "tfenv: Use ~/.tfenv instead? [y/N]" >&2;
+    read -r answer;
+    if [[ "${answer}" =~ ^[Yy]$ ]]; then
+      TFENV_CONFIG_DIR="${HOME}/.tfenv";
+      export TFENV_CONFIG_DIR;
+      mkdir -p "${TFENV_CONFIG_DIR}" || log 'error' "Failed to create ${TFENV_CONFIG_DIR}";
+      log 'info' "Falling back to TFENV_CONFIG_DIR=${TFENV_CONFIG_DIR}";
+    else
+      log 'error' "TFENV_CONFIG_DIR (${TFENV_CONFIG_DIR}) is not writable. Set TFENV_CONFIG_DIR to a writable path (e.g. export TFENV_CONFIG_DIR=\"\${HOME}/.tfenv\")";
+    fi;
+  else
+    log 'error' "TFENV_CONFIG_DIR (${TFENV_CONFIG_DIR}) is not writable. Set TFENV_CONFIG_DIR to a writable path (e.g. export TFENV_CONFIG_DIR=\"\${HOME}/.tfenv\")";
+  fi;
+fi;
+
 dst_path="${TFENV_CONFIG_DIR}/versions/${version}";
 if [ -f "${dst_path}/terraform" ]; then
   echo "Terraform v${version} is already installed";
@@ -97,10 +122,6 @@ fi;
 declare lockdir="${TFENV_CONFIG_DIR}/.install-lock-${version}";
 declare lock_retries=0;
 declare lock_max_retries=60;
-
-# Ensure the config dir exists so the lock mkdir can succeed on a first install.
-# Without this, mkdir fails with ENOENT and the loop below misreads it as contention.
-mkdir -p "${TFENV_CONFIG_DIR}" || log 'error' "Failed to create ${TFENV_CONFIG_DIR}";
 
 cleanup_lock() {
   rmdir "${lockdir}" 2>/dev/null || true;
